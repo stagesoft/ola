@@ -1,12 +1,18 @@
-ola (0.10.9-2) UNRELEASED; urgency=medium
+ola (0.10.9.nojsmin-2+cuems3) bookworm; urgency=medium
 
+  [ Wouter Verhelst ]
   * Fix ola-rdm-tests Debian package by patching python shebangs to python3
     with dh_python3.
   * Reorder build command line in autopkgtest; Closes: Debian #913704.
   * This change pulled from Debian by Perry Naseck <git@perrynaseck.com>
     https://salsa.debian.org/wouter/ola/-/commit/223f9ddaf9d4001dfc908734f0641315edbf9ea2
 
- -- Wouter Verhelst <wouter@debian.org>  Wed, 14 Nov 2018 23:44:42 +0100
+  [ Ion Reguera ]
+  * Backport Eurolite USB-DMX512 PRO MK2 support to the usbdmx plugin
+    (enable_eurolite_mk2 / eurolite_mk2_serial preferences; set FTDI
+    baud rate; ConflictsWith ftdidmx/stageprofi/usbpro when enabled).
+
+ -- Ion Reguera <ion@stagelab.coop>  Mon, 22 Jun 2026 16:42:34 +0200
 
 ola (0.10.9-1) unstable; urgency=low
 
