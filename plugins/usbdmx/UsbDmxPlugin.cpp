@@ -20,12 +20,14 @@
 
 #include "plugins/usbdmx/UsbDmxPlugin.h"
 
+#include <set>
 #include <string>
 
 #include "ola/Logging.h"
 #include "ola/base/Flags.h"
 #include "olad/Preferences.h"
 #include "plugins/usbdmx/AsyncPluginImpl.h"
+#include "plugins/usbdmx/EuroliteProFactory.h"
 #include "plugins/usbdmx/PluginImplInterface.h"
 #include "plugins/usbdmx/SyncPluginImpl.h"
 
@@ -112,6 +114,16 @@ string UsbDmxPlugin::Description() const {
 "5 - DMX In -> DMX Out & DMX In -> PC In\n"
 "6 - PC Out -> DMX Out & DMX In -> PC In\n"
 "7 - DMX In + PC Out -> DMX Out & DMX In -> PC In\n"
+"\n"
+"enable_eurolite_mk2 = {false,true}\n"
+"Whether to enable detection of the Eurolite USB-DMX512 PRO MK2. It uses a\n"
+"generic FTDI chip, so this is disabled by default to avoid clashing with\n"
+"other FTDI devices. Enabling it conflicts with the ftdidmx, stageprofi and\n"
+"usbpro (Serial USB) plugins, which are disabled while it is enabled.\n"
+"\n"
+"eurolite_mk2_serial = <serial>\n"
+"Treat the FTDI device with this serial number as a Eurolite USB-DMX512 PRO\n"
+"MK2 even when enable_eurolite_mk2 = false. May be specified multiple times.\n"
 "\n";
 }
 
@@ -125,11 +137,32 @@ bool UsbDmxPlugin::SetDefaultPreferences() {
       UIntValidator(LIBUSB_DEFAULT_DEBUG_LEVEL, LIBUSB_MAX_DEBUG_LEVEL),
       LIBUSB_DEFAULT_DEBUG_LEVEL);
 
+  save |= m_preferences->SetDefaultValue(
+      EuroliteProFactory::ENABLE_EUROLITE_MK2_KEY,
+      BoolValidator(),
+      false);
+
+  save |= m_preferences->SetDefaultValue(
+      EuroliteProFactory::EUROLITE_MK2_SERIAL_KEY,
+      StringValidator(),
+      "");
+
   if (save) {
     m_preferences->Save();
   }
 
   return true;
+}
+
+void UsbDmxPlugin::ConflictsWith(
+    std::set<ola_plugin_id>* conflicting_plugins) const {
+  // When the Eurolite USB-DMX512 PRO MK2 is enabled it claims generic FTDI
+  // 0403:6001 devices, which would otherwise be grabbed by these plugins.
+  if (EuroliteProFactory::IsEuroliteMk2Enabled(m_preferences)) {
+    conflicting_plugins->insert(OLA_PLUGIN_FTDIDMX);
+    conflicting_plugins->insert(OLA_PLUGIN_STAGEPROFI);
+    conflicting_plugins->insert(OLA_PLUGIN_USBPRO);
+  }
 }
 }  // namespace usbdmx
 }  // namespace plugin
