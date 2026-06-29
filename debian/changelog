@@ -1,3 +1,13 @@
+ola (0.10.9.nojsmin-2+cuems4) bookworm; urgency=medium
+
+  * debian: drop the misleading "start olad at boot?" debconf prompt.
+    olad is managed by systemd (olad.service) and the SysV init script
+    is dpkg-diverted by cuems-common, so the RUN_DAEMON flag this prompt
+    sets is inert. Skip db_input in ola.config; keep get_config_file so
+    the postinst db_get still resolves.
+
+ -- Ion Reguera <ion@stagelab.coop>  Mon, 29 Jun 2026 13:07:02 +0200
+
 ola (0.10.9.nojsmin-2+cuems3) bookworm; urgency=medium
 
   [ Wouter Verhelst ]
