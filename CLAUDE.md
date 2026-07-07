@@ -1,0 +1,15 @@
+# ola (CUEMS fork)
+
+Part of the **CUEMS** ecosystem — see the [`cuems-RELATIONS`](https://github.com/stagesoft/cuems-RELATIONS) repo for the system index, architecture diagram, and protocol/port map.
+
+## What this is
+
+The **stagesoft fork** of [OpenLightingProject/ola](https://github.com/OpenLightingProject/ola) — the Open Lighting Architecture (DMX/sACN distribution layer; daemon `olad`, plugins, `libola`). `cuems-dmxplayer` sends DMX to a universe via OLA. Fork branch **`0.10-cuems-eurolite-mk2`**; the CUEMS Debian build is `0.10.9.nojsmin-2+cuems3` (the eurolite-mk2-capable build; `+cuems2` could NOT drive the MK2). Fork = upstream 0.10.9 + flock/cpplint/C++20 patches + a backported Eurolite MK2 usbdmx driver — **no DMX-path behavior changes**. `.deb`s cached at `rc1_packages/`; protect with an apt pin (`preferences.d/ola-pinned` priority 1001). Install/setup notes also in `cuems-common/docs/ola-install.md`.
+
+## Field notes / gotchas
+
+- **Rogue-olad (the big one).** `libola` has `auto_start=true`: `cuems-dmxplayer` (user `cuems`) spawns its own `olad` whenever nothing listens on `:9010`. That rogue olad runs as `cuems` (NOT in `plugdev` → can't open the FT232 raw USB node) and squats `:9010`, so the native `olad.service` (User `olad`, in dialout+plugdev) fails to bind and restart-loops. Fix: `systemctl enable olad` on every CUEMS host so it grabs `:9010` at boot; and cuems-common 1.3.0-12 adds `cuems-node-engine.service After=olad.service` so at cold boot olad binds before node-engine spawns dmxplayer. **The ordering only helps at boot — a runtime `systemctl restart olad` while a dmxplayer is live still triggers the rogue.** Evict without reboot (project idle): `pkill -STOP -f /usr/bin/cuems-dmxplayer` → `systemctl stop olad; killall -9 olad` → `systemctl start olad` → `pkill -CONT ...`. Same SIGSTOP wrap is needed around `cuems-ola-profile` and any `systemctl restart olad`.
+- **Universe is 0, not 1.** The engine emits OSC `/frame universe=0` (`settings.xml <universes>1</universes>` is a COUNT; id is 0). Patch the FTDI to universe **0**: `ola_patch -d <dev> -p 1 -u 0` (Open-DMX OUTPUT is **port 1**, not 0).
+- **Open DMX USB (Enttec, FT232 `0403:6001`):** `sudo cuems-ola-profile opendmx` (enables ftdidmx+usbdmx+artnet+e131, blacklists+unloads `ftdi_sio` so libftdi claims the chip).
+- **Eurolite USB-DMX512 PRO MK2** (MCU-based, fixed 44Hz, status LED green=valid/red=no-data): needs the `usbdmx` plugin → EurolitePro protocol, **NOT** `ftdidmx` (red LED). Requires `enable_eurolite_mk2 = true` (or `eurolite_mk2_serial=<serial>`) in `ola-usbdmx.conf` — that code is upstream git-master only, backported into this fork's `+cuems3`. `cuems-ola-profile eurolite-mk2` auto-detects the FT232R serial and configures it. Conflicts with ftdidmx/usbserial/stageprofi (disable them). The dongle presents STOCK FT232R descriptors, indistinguishable from any other FT232R.
+- **Persistence:** OLA flushes universe/port prefs to `/etc/ola` only on clean shutdown (SIGTERM) — force via a SIGSTOP-wrapped `systemctl restart olad`. Persisted entry is keyed by **serial**: `/etc/ola/ola-port.conf` → `13-<SER>-O-1 = 0`.
